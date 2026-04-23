@@ -78,8 +78,17 @@ void test_resize_reserve() {
     assert(s.c_str()[3] == '\0');
 
     s.reserve(100);
-    assert(s.capacity() >= 100);
+    // According to requirement: if size <= 15, capacity() should return 15
     assert(s.size() == 10);
+    assert(s.capacity() == 15);
+
+    // Test transition from heap to SSO
+    MyString s2("this is a very long string that is definitely on the heap");
+    assert(s2.size() > 15);
+    s2.resize(5);
+    assert(s2.size() == 5);
+    assert(s2.capacity() == 15);
+    assert(strcmp(s2.c_str(), "this ") == 0);
 }
 
 int main() {

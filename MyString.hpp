@@ -2,21 +2,21 @@
 #ifndef SIMPLE_STRING_SIMPLESTRING_HPP
 #define SIMPLE_STRING_SIMPLESTRING_HPP
 
-#include <stdexcept> // you can use std::out_of_range
+#include <stdexcept>
 #include <cstring>
 #include <algorithm>
 
 class MyString {
 private:
     union {
-        char* heap_ptr;        // Pointer to heap-allocated memory
-        char small_buffer[16]; // Buffer for small string optimization (SSO)
+        char* heap_ptr;
+        char small_buffer[16];
     };
     size_t _size;
-    size_t _capacity;
+    size_t _capacity; // Internal capacity. If <= 15, we are in SSO mode.
 
     bool is_small() const {
-        return _size <= 15;
+        return _capacity <= 15;
     }
 
     char* get_data() {
@@ -45,7 +45,7 @@ public:
     }
 
     MyString(const MyString& other) : _size(other._size), _capacity(other._capacity) {
-        if (is_small()) {
+        if (other.is_small()) {
             memcpy(small_buffer, other.small_buffer, _size + 1);
         } else {
             heap_ptr = new char[_capacity + 1];
@@ -87,7 +87,7 @@ public:
 
     MyString& operator=(const MyString& other) {
         if (this != &other) {
-            if (other._size <= 15) {
+            if (other.is_small()) {
                 if (!is_small()) {
                     delete[] heap_ptr;
                 }
@@ -123,6 +123,7 @@ public:
     }
 
     size_t capacity() const {
+        if (_size <= 15) return 15;
         return _capacity;
     }
 
@@ -143,8 +144,12 @@ public:
         if (new_size <= _size) {
             _size = new_size;
             get_data()[_size] = '\0';
-            // Optional: shrink capacity? README says "when string length decreases to a certain extent, it will release part of memory"
-            // But it doesn't specify the threshold. Let's keep it simple for now.
+            if (new_size <= 15 && !is_small()) {
+                char* old_ptr = heap_ptr;
+                memcpy(small_buffer, old_ptr, _size + 1);
+                delete[] old_ptr;
+                _capacity = 15;
+            }
         } else {
             if (new_size > _capacity) {
                 reserve(std::max(new_size, _capacity * 2));
@@ -232,8 +237,10 @@ public:
     private:
         const char* ptr;
     public:
+        friend class MyString;
+        friend class iterator;
         const_iterator(const char* p) : ptr(p) {}
-        const_iterator(const iterator& it); // defined below
+        const_iterator(const iterator& it) : ptr(it.ptr) {}
         const_iterator& operator++() {
             ++ptr;
             return *this;
@@ -270,8 +277,6 @@ public:
         bool operator!=(const iterator& other) const {
             return ptr != other.ptr;
         }
-        friend class iterator;
-        friend class MyString;
     };
 
     iterator begin() {
@@ -299,15 +304,11 @@ public:
     }
 };
 
-inline MyString::const_iterator::const_iterator(const iterator& it) : ptr(it.ptr) {}
-
 inline bool MyString::iterator::operator==(const const_iterator& other) const {
     return ptr == other.ptr;
 }
 inline bool MyString::iterator::operator!=(const const_iterator& other) const {
     return ptr != other.ptr;
 }
-// Need to fix const_iterator comparison with iterator
-// Actually, it's better to make them compatible.
 
 #endif
