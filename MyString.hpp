@@ -154,17 +154,22 @@ public:
             if (new_size > _capacity) {
                 reserve(std::max(new_size, _capacity * 2));
             }
-            memset(get_data() + _size, '\0', new_size - _size);
+            char* data = get_data();
+            for (size_t i = _size; i < new_size; ++i) {
+                data[i] = '\0';
+            }
             _size = new_size;
-            get_data()[_size] = '\0';
+            data[_size] = '\0';
         }
     }
 
     char& operator[](size_t index) {
+        if (index >= _size) throw std::out_of_range("MyString::operator[]");
         return get_data()[index];
     }
 
     const char& operator[](size_t index) const {
+        if (index >= _size) throw std::out_of_range("MyString::operator[]");
         return get_data()[index];
     }
 
@@ -222,6 +227,9 @@ public:
         }
         char& operator*() const {
             return *ptr;
+        }
+        char* operator->() const {
+            return ptr;
         }
         bool operator==(const iterator& other) const {
             return ptr == other.ptr;
